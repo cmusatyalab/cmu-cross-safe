@@ -8,7 +8,7 @@ Note: These instructions are based on
    server that you would like to train the model on. 
 2. Setup a [Python 3 Virtualenv](https://packaging.python.org/guides/installing-using-pip-and-virtualenv) and activate it.
 2. Install the Object Detection model by follwing [these instructions](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/installation.md).
-    1. The `<models repository location>/research/` and `<models repository location>/research/slim` directories 
+    1. The `<models repository location>/research` and `<models repository location>/research/slim` directories 
        must be in your PYTHONPATH every time you use this model. 
     2. The `<models repository location>/research/object_detection/builders/model_builder_test.py` test
        should pass after you finish the installation steps. If you run into any problems using this model,
@@ -37,7 +37,7 @@ Note: These instructions are based on
    this to configure the
    training process. In particular, you will need to specify the correct values for the `fine_tune_checkpoint`, `input_path`,
    and `label_map_path` parameters.
-7. Begin the training process by running the following command from your `<models repository location>/research/` directory:
+7. Begin the training process by running the following command from your `<models repository location>/research` directory:
    ``` bash
    python object_detection/model_main.py \
        --pipeline_config_path=experiment_data/faster_rcnn_resnet101_cross_safe.config
@@ -47,7 +47,7 @@ Note: These instructions are based on
    1. If you are running this on a server over an SSH connection, consider running this command in TMUX, so that it can
       continue running after your SSH connection is disconnected.
 8. Check on the status of your training by running `tensorboard --logdir=model_dir` from your 
-   `<models repository location>/research/` directory.    
+   `<models repository location>/research` directory.    
    1. This should be done from another shell while the training process is being run. Ensure that your virtualenv is 
       activated from this shell as well.
    2. Open a web browser and navigate to the location outputted by the Tensorboard command. Note that it may take some 
@@ -58,7 +58,7 @@ Note: These instructions are based on
 ## Exporting the classifier
 1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint   
    that you would like to export. I typically pick the checkpoint with the highest number.
-2. Run the following command from the `<models repository location>/research/` directory:
+2. Run the following command from the `<models repository location>/research` directory:
    ``` bash
    python object_detection/export_inference_graph.py \
        --input_type image_tensor \
@@ -73,7 +73,7 @@ Note: These instructions are based on
    `object_detection/export_inference_graph.py` command on the Jetson board directly. 
    
 ## Evaluating the classifier
-1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research/` directory.
+1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research` directory.
 2. Edit the copy of this script and update the location of the frozen inference graph, the label map location, the location
    of the pickle file with the list of files in the hold out set, and the location of the JPEG files from the filtered 
    directory from Cross-Safe.
