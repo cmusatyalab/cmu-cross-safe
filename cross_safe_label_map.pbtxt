@@ -1,0 +1,15 @@
+# This is based on the following file:
+# https://github.com/tensorflow/models/blob/master/research/object_detection/data/pet_label_map.pbtxt
+# The original file is licensed under the Apache License, Version 2.0 with
+# the following copyright notice:
+# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+
+item {
+  id: 1
+  name: 'dont_walk'
+}
+
+item {
+  id: 2
+  name: 'walk'
+}
