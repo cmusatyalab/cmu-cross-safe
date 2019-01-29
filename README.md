@@ -1,8 +1,8 @@
 # cmu-cross-safe
 
 ## Setup
-Note: These instructions are based on the 
-[following document](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/running_pets.md).
+Note: These instructions are based on 
+[this document](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/running_pets.md).
 
 1. Clone the [tensorflow/models](https://github.com/tensorflow/models) repository so some location on the 
    server that you would like to train the model on. 
