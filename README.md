@@ -95,7 +95,8 @@ Note: These instructions are based on
 Follow the instructions in the [Evaluating the Classifier section](#evaluating-the-classifier) using the location of the 
 frozen inference graph file in the `classifier` directory of this repository. If you run into issues with this file, follow
 the instructions in the [Exporting the Classifier](#exporting-the-classifier) section using the checkpoint files in the 
-`classifier` directory of this repository.
+`classifier` directory of this repository. The `classifier` directory also contains a pickle file with the list of holdout
+files. You should direct the `compute_metrics.py` script to this file as well to ensure that you are using data that the classifier has not seen before.
 
 ## Licensing
 Unless otherwise stated, the source code files are copyright Carnegie Mellon University and licensed
