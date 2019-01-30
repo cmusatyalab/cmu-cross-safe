@@ -1,5 +1,7 @@
+# Copyright 2019 Carnegie Mellon University
+#
 # This is based on the following file:
-# https://github.com/scikit-learn/scikit-learn/blob/2bd87f6ed8d36f89cab73552665e4e59e892262b/examples/model_selection/plot_precision_recall.py
+# https://github.com/scikit-learn/scikit-learn/blob/master/examples/model_selection/plot_precision_recall.py
 # The original file is licensed under the New BSD License with the following
 # copyright notice:
 # Copyright (c) 2007–2019 The scikit-learn developers.
