@@ -1,5 +1,9 @@
 # cmu-cross-safe
 
+## Cloning Repository
+This repository contains files in the "classifier" directory that are stored with [Git LFS](https://git-lfs.github.com). 
+You must have Git LFS installed in order for these files to be cloned properly.
+
 ## Setup
 Note: These instructions are based on 
 [this document](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/running_pets.md).
@@ -55,7 +59,7 @@ Note: These instructions are based on
 9. Once you are ready to stop training, hold control and press c in the shell that is running the training process. In my
    experience, it took a few hours to train this classifier.
    
-## Exporting the classifier
+## Exporting the Classifier
 1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint   
    that you would like to export. I typically pick the checkpoint with the highest number.
 2. Run the following command from the `<models repository location>/research` directory:
@@ -72,7 +76,7 @@ Note: These instructions are based on
    get around this problem by copying the checkpoint files over to the Jetson and running the
    `object_detection/export_inference_graph.py` command on the Jetson board directly. 
    
-## Evaluating the classifier
+## Evaluating the Classifier
 1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research` directory.
 2. Edit the copy of this script and update the location of the frozen inference graph, the label map location, the location
    of the pickle file with the list of files in the hold out set, and the location of the JPEG files from the filtered 
@@ -86,6 +90,12 @@ Note: These instructions are based on
 6. Add the dependencies listed in `requirements.txt` to 
    [a virtualenv](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/#using-requirements-files).
 7. Run the `plot_precision_recall.py` script to generate the precision-recall curve.
+
+## Running the Existing Classifier
+Follow the instructions in the [Evaluating the Classifier section](#evaluating-the-classifier) using the location of the 
+frozen inference graph file in the `classifier` directory of this repository. If you run into issues with this file, follow
+the instructions in the [Exporting the Classifier](#exporting-the-classifier) section using the checkpoint files in the 
+`classifier` directory of this repository.
 
 ## Licensing
 Unless otherwise stated, the source code files are copyright Carnegie Mellon University and licensed
