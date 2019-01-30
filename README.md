@@ -80,7 +80,8 @@ Note: These instructions are based on
 1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research` directory.
 2. Edit the copy of this script and update the location of the frozen inference graph, the label map location, the location
    of the pickle file with the list of files in the hold out set, and the location of the JPEG files from the filtered 
-   directory from Cross-Safe.
+   directory from Cross-Safe. When working with images from the `filtered_data` directory, you should comment out the line 
+   `image = image.convert('RGB')`. However, this line is needed when working with images from the `new_splitted_data` directory.
 3. Run the script. It will print out information about the classifier's performance and it will create the pickle files:
    `dont_walk_labels.p`, `dont_walk_scores.p`, `walk_labels.p`, and `walk_scores.p`.
 4. Checkout this repository on a computer with a graphical user interface (or SSH into a server with X Forwarding enabled).
