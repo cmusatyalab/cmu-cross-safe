@@ -1,3 +1,5 @@
+# Copyright 2019 Carnegie Mellon University
+#
 # This is based on the following file:
 # https://github.com/tensorflow/models/blob/master/research/object_detection/dataset_tools/create_pet_tf_record.py
 # The original file is licensed under the Apache License, Version 2.0 with
