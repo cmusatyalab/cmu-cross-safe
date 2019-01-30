@@ -86,3 +86,17 @@ Note: These instructions are based on
 6. Add the dependencies listed in `requirements.txt` to 
    [a virtualenv](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/#using-requirements-files).
 7. Run the `plot_precision_recall.py` script to generate the precision-recall curve.
+
+## Licensing
+Unless otherwise stated, the source code files are copyright Carnegie Mellon University and licensed
+under the [Apache 2.0 License](./LICENSE).
+Portions from the following third party sources have
+been modified and are included in this repository.
+These portions are noted in the source files and are
+copyright their respective authors with
+the licenses listed.
+
+| Project                                                      | License                    |
+|--------------------------------------------------------------|----------------------------|
+| [scikit-learn](https://github.com/scikit-learn/scikit-learn) | New BSD License            |
+| [TensorFlow Models](https://github.com/tensorflow/models)    | Apache License Version 2.0 |
