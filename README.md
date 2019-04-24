@@ -44,8 +44,8 @@ Note: These instructions are based on
 7. Begin the training process by running the following command from your `<models repository location>/research` directory:
    ``` bash
    python object_detection/model_main.py \
-       --pipeline_config_path=experiment_data/faster_rcnn_resnet101_cross_safe.config
-       --model_dir=model_dir
+       --pipeline_config_path=experiment_data/faster_rcnn_resnet101_cross_safe.config \
+       --model_dir=model_dir \
        --alsologtostderr
    ```
    1. If you are running this on a server over an SSH connection, consider running this command in TMUX, so that it can
@@ -60,7 +60,7 @@ Note: These instructions are based on
    experience, it took a few hours to train this classifier.
    
 ## Exporting the Classifier
-1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint   
+1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint
    that you would like to export. I typically pick the checkpoint with the highest number.
 2. Run the following command from the `<models repository location>/research` directory:
    ``` bash
