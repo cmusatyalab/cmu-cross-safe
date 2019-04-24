@@ -49,13 +49,21 @@ flags.DEFINE_string('label_map_path', 'cross_safe_label_map.pbtxt',
 FLAGS = flags.FLAGS
 
 CLASSES = {
+    'Don\'t walk' : 1,
     'dont walk' : 1,
     'walk' : 2,
+    'Walk' : 2,
     'countdown' : 3,
     'off' : 4,
 }
 
 OTHER = 'other'
+TRAIN_FILENAME = 'train.record'
+VAL_FILENAME = 'val.record'
+TRAIN_PICKLE_FILENAME = 'train_files.p'
+VAL_PICKLE_FILENAME = 'val_files.p'
+TEST_PICKLE_FILENAME = 'test_files.p'
+
 
 def filename_to_tf_example(filename, label_dir, image_dir, category_index):
     print(filename)
@@ -87,7 +95,7 @@ def filename_to_tf_example(filename, label_dir, image_dir, category_index):
                 class_number = CLASSES.get(label_from_file)
                 if class_number is None:
                     if label_from_file == OTHER:
-                        logging.info('Skipping', OTHER, 'label')
+                        logging.info('Skipping {} label'.format(OTHER))
                     else:
                         raise Exception('Bad Label {}'.format(label_from_file))
                 else:
@@ -176,8 +184,8 @@ def main(_):
     files = list(label_filenames)
     random.shuffle(files)
 
-    # Remove 40% of data
-    files = files[:int(len(files) * 0.6)]
+    # Remove 20% of data
+    files = files[:int(len(files) * 0.8)]
 
     num_examples = len(files)
     num_train_val = int(0.8 * num_examples)
@@ -191,18 +199,27 @@ def main(_):
     val_files = files[val_start:test_start]
     test_files = files[test_start:]
 
+    train_record = os.path.join(FLAGS.output_dir, TRAIN_FILENAME)
+    val_record = os.path.join(FLAGS.output_dir, VAL_FILENAME)
+    
     create_tf_record(
-        'train.record', category_index, label_dir, image_dir, train_files)
+        train_record, category_index, label_dir, image_dir, train_files)
     create_tf_record(
-        'val.record', category_index, label_dir, image_dir, val_files)
+        val_record, category_index, label_dir, image_dir, val_files)
 
-    with open('train_files.p', 'wb') as f:
+    train_pickle_file = os.path.join(
+        FLAGS.output_dir, TRAIN_PICKLE_FILENAME)
+    with open(train_pickle_file, 'wb') as f:
         pickle.dump(train_files, f)
 
-    with open('val_files.p', 'wb') as f:
+    val_pickle_file = os.path.join(
+        FLAGS.output_dir, VAL_PICKLE_FILENAME)        
+    with open(val_pickle_file, 'wb') as f:
         pickle.dump(val_files, f)
 
-    with open('test_files.p', 'wb') as f:
+    test_pickle_file = os.path.join(
+        FLAGS.output_dir, TEST_PICKLE_FILENAME)
+    with open(test_pickle_file, 'wb') as f:
         pickle.dump(test_files, f)
 
     print('num train', len(train_files))
