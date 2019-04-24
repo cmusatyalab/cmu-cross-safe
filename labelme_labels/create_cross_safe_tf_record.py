@@ -35,6 +35,10 @@ from object_detection.utils import label_map_util
 
 from lxml import etree
 
+# from https://github.com/agschwender/pilbox/issues/34#issuecomment-84093912
+from PIL import JpegImagePlugin
+JpegImagePlugin._getmp = lambda x: None
+
 flags = tf.app.flags
 flags.DEFINE_string('label_dir', '', 'Directory with labels')
 flags.DEFINE_string('image_dir', '', 'Directory with images')
@@ -54,11 +58,13 @@ CLASSES = {
 OTHER = 'other'
 
 def filename_to_tf_example(filename, label_dir, image_dir, category_index):
+    print(filename)
     img_path = os.path.join(image_dir, '{}.JPEG'.format(filename))
     with tf.gfile.GFile(img_path, 'rb') as fid:
         encoded_jpg = fid.read()
         encoded_jpg_io = io.BytesIO(encoded_jpg)
         image = PIL.Image.open(encoded_jpg_io)
+        print(image.format)
         if image.format != 'JPEG':
             raise ValueError('Image format not JPEG')
         key = hashlib.sha256(encoded_jpg).hexdigest()
@@ -73,11 +79,11 @@ def filename_to_tf_example(filename, label_dir, image_dir, category_index):
         classes_text = []
 
         label_path = os.path.join(
-            label_dir, '{}.txt'.format(filename))
+            label_dir, '{}.xml'.format(filename))
         with open(label_path) as label_file:
             xml = etree.fromstring(label_file.read())
             for child in xml.findall('object'):
-                label_from_file = child.find('name')
+                label_from_file = child.find('name').text
                 class_number = CLASSES.get(label_from_file)
                 if class_number is None:
                     if label_from_file == OTHER:
@@ -91,10 +97,10 @@ def filename_to_tf_example(filename, label_dir, image_dir, category_index):
                     classes_text.append(category.encode('utf8'))
 
                     bndbox = child.find('bndbox')
-                    xmin = float(bndbox.find('xmin'))
-                    ymin = float(bndbox.find('ymin'))
-                    xmax = float(bndbox.find('xmax'))
-                    ymax = float(bndbox.find('ymax'))
+                    xmin = float(bndbox.find('xmin').text)
+                    ymin = float(bndbox.find('ymin').text)
+                    xmax = float(bndbox.find('xmax').text)
+                    ymax = float(bndbox.find('ymax').text)
 
                     xmins.append(xmin / width)
                     ymins.append(ymin / height)
@@ -155,7 +161,7 @@ def main(_):
 
     image_filenames = set()
     for filename in os.listdir(FLAGS.image_dir):
-        elif filename.endswith('.JPEG'):
+        if filename.endswith('.JPEG'):
             image_filenames.add(filename[:-5])
         elif filename == '.gitattributes':
             logging.info('skipping gitattributes')
@@ -165,13 +171,13 @@ def main(_):
     print('Number of text files', len(label_filenames))
     print('Number of images', len(image_filenames))
     print('Difference',
-          label_filenames.difference(image_filenames))
+          image_filenames.difference(label_filenames))
 
     files = list(label_filenames)
     random.shuffle(files)
 
     # Remove 40% of data
-    files = files[:(len(files) * 0.6)]
+    files = files[:int(len(files) * 0.6)]
 
     num_examples = len(files)
     num_train_val = int(0.8 * num_examples)
