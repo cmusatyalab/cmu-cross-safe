@@ -1,0 +1,19 @@
+item {
+  id: 1
+  name: 'dont_walk'
+}
+
+item {
+  id: 2
+  name: 'walk'
+}
+
+item {
+  id: 3
+  name: 'countdown'
+}
+
+item {
+  id: 4
+  name: 'off'
+}
