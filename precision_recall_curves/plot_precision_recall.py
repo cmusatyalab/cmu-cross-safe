@@ -150,10 +150,10 @@ dont_walk_precision, dont_walk_recall, _ = precision_recall_curve(
     dont_walk_labels, dont_walk_scores)
 
 plt.plot(dont_walk_recall, dont_walk_precision, color='green', lw=2,
-         label='Precision-recall for Walk, AP={0:0.2f}'.format(
+         label='Precision-recall for Don\'t Walk, AP={0:0.2f}'.format(
              walk_average_precision))
 plt.plot(walk_recall, walk_precision, color='red', lw=2,
-         label='Precision-recall for Don\'t walk, '
+         label='Precision-recall for walk, '
          'AP={0:0.2f}'.format(
              dont_walk_average_precision))
 
