@@ -85,7 +85,7 @@ Note: These instructions are based on
 3. Run the script. It will print out information about the classifier's performance and it will create the pickle files:
    `dont_walk_labels.p`, `dont_walk_scores.p`, `walk_labels.p`, and `walk_scores.p`.
 4. Checkout this repository on a computer with a graphical user interface (or SSH into a server with X Forwarding enabled).
-5. Move the four pickle files created by `compute_metrics.py` into the `precision_recall_curves` directory in this   
+5. Move the four pickle files created by `compute_metrics.py` into the `precision_recall_curves` directory in this
    repository on the computer with access to a GUI. 
 5. Navigate to the `precision_recall_curves` directory with a shell. 
 6. Add the dependencies listed in `requirements.txt` to 
