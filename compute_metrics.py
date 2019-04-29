@@ -1,5 +1,5 @@
 # Copyright 2019 Carnegie Mellon University
-# 
+#
 # Based on:
 # https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
 
@@ -23,17 +23,19 @@ if StrictVersion(tf.__version__) < StrictVersion('1.9.0'):
   raise ImportError('Please upgrade your TensorFlow installation to v1.9.* or later!')
 
 
-def jaccard(box_a, box_b):
-    x_overlap = max(0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
-    y_overlap = max(0, min(box_a[3], box_b[3]) - max(box_a[1], box_b[1]))
-    intersection = x_overlap * y_overlap
+def calc_iou(box_a, box_b):
+  # From https://github.com/georgesung/ssd_tensorflow_traffic_sign_detection/
+  # blob/e5f32413fb56279d5b6fb51a243ca06e5c567dce/data_prep.py#L9
+  x_overlap = max(0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
+  y_overlap = max(0, min(box_a[3], box_b[3]) - max(box_a[1], box_b[1]))
+  intersection = x_overlap * y_overlap
 
-    area_box_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
-    area_box_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
-    union = area_box_a + area_box_b - intersection
+  area_box_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
+  area_box_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
+  union = area_box_a + area_box_b - intersection
 
-    iou = intersection / union
-    return iou
+  iou = intersection / union
+  return iou
 
 
 # # Model preparation
@@ -163,14 +165,14 @@ def write_inference_and_ground_truth(graph):
               ground_truth_bounding_box_file[2] / 400,
             ]
 
-            found_true_class = False            
+            found_true_class = False
             for detection_score, detection_box, detection_class in (
                 zip(detection_scores, detection_boxes, detection_classes)):
               if detection_score > 0.5:
                 total_predictions += 1
 
                 label_value = 0
-                correct_box = jaccard(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD
+                correct_box = calc_iou(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD
                 if (true_class == detection_class and correct_box):
                   found_true_class = True
                   label_value = 1
@@ -205,7 +207,7 @@ def write_inference_and_ground_truth(graph):
 
                 inference_bounding_box = detection_boxes[0]
 
-                single_jaccard = jaccard(inference_bounding_box, ground_truth_bounding_box)
+                single_jaccard = calc_iou(inference_bounding_box, ground_truth_bounding_box)
                 heapq.heappush(heap, (single_jaccard, image_path))
                 jaccard_total += single_jaccard
 

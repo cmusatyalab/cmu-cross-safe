@@ -39,17 +39,19 @@ if StrictVersion(tf.__version__) < StrictVersion('1.9.0'):
   raise ImportError('Please upgrade your TensorFlow installation to v1.9.* or later!')
 
 
-def jaccard(box_a, box_b):
-    x_overlap = max(0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
-    y_overlap = max(0, min(box_a[3], box_b[3]) - max(box_a[1], box_b[1]))
-    intersection = x_overlap * y_overlap
+def calc_iou(box_a, box_b):
+  # From https://github.com/georgesung/ssd_tensorflow_traffic_sign_detection/
+  # blob/e5f32413fb56279d5b6fb51a243ca06e5c567dce/data_prep.py#L9
+  x_overlap = max(0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
+  y_overlap = max(0, min(box_a[3], box_b[3]) - max(box_a[1], box_b[1]))
+  intersection = x_overlap * y_overlap
 
-    area_box_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
-    area_box_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
-    union = area_box_a + area_box_b - intersection
+  area_box_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
+  area_box_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
+  union = area_box_a + area_box_b - intersection
 
-    iou = intersection / union
-    return iou
+  iou = intersection / union
+  return iou
 
 
 def load_image_into_numpy_array(image):
@@ -63,7 +65,7 @@ def load_ground_truths(filename, width, height):
   label_path = os.path.join(LABEL_DIR, '{}.xml'.format(filename))
   with open(label_path) as label_file:
     xml = etree.fromstring(label_file.read())
-    
+
     for child in xml.findall('object'):
       label_from_file = child.find('name').text
       class_number = CLASSES.get(label_from_file)
@@ -108,13 +110,13 @@ class Metrics:
         ground_truth.ymax,
         ground_truth.xmax
       ]
-                
-      if jaccard(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD:
+
+      if calc_iou(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD:
         if found_matching_box:
           print('Found multiple matching boxes')
 
         found_matching_box = True
-        
+
         label_value = (1 if (detection_class == ground_truth.class_number)
                        else 0)
         self.labels[detection_class-1].append(label_value)
@@ -164,7 +166,7 @@ class Metrics:
           detection_scores = output_dict['detection_scores'][0]
 
           ground_truths = load_ground_truths(filename, width, height)
-                
+
           for detection_score, detection_box, detection_class in (
               zip(detection_scores, detection_boxes, detection_classes)):
             if detection_score > MIN_SCORE_THRESH:
@@ -176,7 +178,7 @@ class Metrics:
   def print_info(self):
     print('total predictions:', self.total_predictions)
     print('boxes in wrong place:', self.box_in_wrong_place)
-        
+
     total_precision = 0
     for score, label in zip(self.scores, self.labels):
       total_precision += average_precision_score(label, score)
@@ -207,12 +209,12 @@ class Metrics:
         pickle.dump(self.labels[3], pickle_file)
 
       with open('off_scores.p', 'wb') as pickle_file:
-        pickle.dump(self.scores[3], pickle_file)    
+        pickle.dump(self.scores[3], pickle_file)
 
 
 def main():
   logging.basicConfig(level=logging.INFO)
-  
+
   detection_graph = tf.Graph()
   with detection_graph.as_default():
     od_graph_def = tf.GraphDef()
