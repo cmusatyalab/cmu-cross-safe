@@ -122,6 +122,18 @@ with open('dont_walk_scores.p', 'rb') as f:
 with open('dont_walk_labels.p', 'rb') as f:
     dont_walk_labels = pickle.load(f)
 
+with open('countdown_scores.p', 'rb') as f:
+    countdown_scores = pickle.load(f)
+
+with open('countdown_labels.p', 'rb') as f:
+    countdown_labels = pickle.load(f)
+
+with open('off_scores.p', 'rb') as f:
+    off_scores = pickle.load(f)
+
+with open('off_labels.p', 'rb') as f:
+    off_labels = pickle.load(f)
+
 ###############################################################################
 # Compute the average precision score
 # ...................................
@@ -131,10 +143,23 @@ walk_average_precision = average_precision_score(walk_labels, walk_scores)
 print('Walk average precision-recall score: {0:0.2f}'.format(
       walk_average_precision))
 
-dont_walk_average_precision = average_precision_score(dont_walk_labels, dont_walk_scores)
+dont_walk_average_precision = average_precision_score(
+    dont_walk_labels, dont_walk_scores)
 
 print('Don\'t walk average precision-recall score: {0:0.2f}'.format(
       dont_walk_average_precision))
+
+countdown_average_precision = average_precision_score(
+    countdown_labels, countdown_scores)
+
+print('Countdown average precision-recall score: {0:0.2f}'.format(
+      countdown_average_precision))
+
+off_average_precision = average_precision_score(
+    off_labels, off_scores)
+
+print('Off average precision-recall score: {0:0.2f}'.format(
+      off_average_precision))
 
 ###############################################################################
 # Plot the Precision-Recall curve
@@ -146,14 +171,26 @@ from sklearn.utils.fixes import signature
 walk_precision, walk_recall, _ = precision_recall_curve(walk_labels, walk_scores)
 dont_walk_precision, dont_walk_recall, _ = precision_recall_curve(
     dont_walk_labels, dont_walk_scores)
+countdown_precision, countdown_recall, _ = precision_recall_curve(
+    countdown_labels, countdown_scores)
+off_precision, off_recall, _ = precision_recall_curve(
+    off_labels, off_scores)
 
 plt.plot(dont_walk_recall, dont_walk_precision, color='green', lw=2,
-         label='Precision-recall for Walk, AP={0:0.2f}'.format(
+         label='Precision-recall for Don\'t Walk, AP={0:0.2f}'.format(
              walk_average_precision))
 plt.plot(walk_recall, walk_precision, color='red', lw=2,
-         label='Precision-recall for Don\'t walk, '
+         label='Precision-recall for Walk, '
          'AP={0:0.2f}'.format(
              dont_walk_average_precision))
+plt.plot(countdown_recall, countdown_precision, color='orange', lw=2,
+         label='Precision-recall for Countdown, '
+         'AP={0:0.2f}'.format(
+             countdown_average_precision))
+plt.plot(off_recall, off_precision, color='purple', lw=2,
+         label='Precision-recall for Off, '
+         'AP={0:0.2f}'.format(
+             off_average_precision))
 
 plt.xlabel('Recall')
 plt.ylabel('Precision')
