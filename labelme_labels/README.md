@@ -1,0 +1,1 @@
+Files for working with a dataset annotated with [labelme](https://github.com/wkentaro/labelme).
