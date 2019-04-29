@@ -78,7 +78,7 @@ Note: These instructions are based on
    
 ## Evaluating the Classifier
 1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research` directory.
-2. Edit the copy of this script and update the location of the frozen inference graph, the label map location, the location
+2. Edit the copy of this script and update the location of the frozen inference graph, the location
    of the pickle file with the list of files in the hold out set, and the location of the JPEG files from the filtered 
    directory from Cross-Safe. When working with images from the `filtered_data` directory, you should comment out the line 
    `image = image.convert('RGB')`. However, this line is needed when working with images from the `new_splitted_data` directory.
