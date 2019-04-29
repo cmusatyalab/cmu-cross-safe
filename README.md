@@ -67,7 +67,7 @@ Note: These instructions are based on
    python object_detection/export_inference_graph.py \
        --input_type image_tensor \
        --pipeline_config_path experiment_data/faster_rcnn_resnet101_cross_safe.config \
-       --trained_checkpoint_prefix model.ckpt-${CHECKPOINT_NUMBER} \
+       --trained_checkpoint_prefix model_dir/model.ckpt-${CHECKPOINT_NUMBER} \
        --output_directory exported_graphs
    ```
 3. The classifier will be written to the `exported_graphs` directory.
