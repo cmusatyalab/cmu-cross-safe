@@ -125,7 +125,7 @@ class Metrics:
     if not found_matching_box:
       self.box_in_wrong_place += 1
 
-  def write_inference_and_ground_truth(self, graph, test_files):
+  def compare_inference_with_ground_truth(self, graph, test_files):
     with graph.as_default():
       with tf.Session() as sess:
         # Get handles to input and output tensors
@@ -228,7 +228,7 @@ def main():
       with open('/home/ubuntu/cross_safe_april_2019/tfrecord_output/test_files.p', 'rb') as f:
         test_files = pickle.load(f)
         metrics = Metrics()
-        metrics.write_inference_and_ground_truth(detection_graph, test_files)
+        metrics.compare_inference_with_ground_truth(detection_graph, test_files)
         metrics.store_results()
         metrics.print_info()
 
