@@ -1,3 +1,5 @@
+# Copyright 2019 Carnegie Mellon University
+# 
 # Based on:
 # https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
 
@@ -34,17 +36,6 @@ def jaccard(box_a, box_b):
     return iou
 
 
-# ## Env setup
-
-# ## Object detection imports
-# Here are the imports from the object detection module.
-
-# In[3]:
-
-
-from object_detection.utils import label_map_util
-
-
 # # Model preparation
 
 # ## Variables
@@ -65,15 +56,6 @@ with detection_graph.as_default():
     serialized_graph = fid.read()
     od_graph_def.ParseFromString(serialized_graph)
     tf.import_graph_def(od_graph_def, name='')
-
-
-# ## Loading label map
-# Label maps map indices to category names, so that when our convolution network predicts `5`, we know that this corresponds to `airplane`.  Here we use internal utility functions, but anything that returns a dictionary mapping integers to appropriate string labels would be fine
-
-# In[11]:
-
-
-category_index = label_map_util.create_category_index_from_labelmap('/home/ubuntu/Cross-Safe/models/research/new_splitted_data/cross_safe_label_map.pbtxt', use_display_name=True)
 
 
 # ## Helper code

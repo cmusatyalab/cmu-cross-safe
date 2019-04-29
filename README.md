@@ -1,5 +1,9 @@
 # cmu-cross-safe
 
+## Cloning Repository
+This repository contains files in the "classifier" directory that are stored with [Git LFS](https://git-lfs.github.com). 
+You must have Git LFS installed in order for these files to be cloned properly.
+
 ## Setup
 Note: These instructions are based on 
 [this document](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/running_pets.md).
@@ -40,8 +44,8 @@ Note: These instructions are based on
 7. Begin the training process by running the following command from your `<models repository location>/research` directory:
    ``` bash
    python object_detection/model_main.py \
-       --pipeline_config_path=experiment_data/faster_rcnn_resnet101_cross_safe.config
-       --model_dir=model_dir
+       --pipeline_config_path=experiment_data/faster_rcnn_resnet101_cross_safe.config \
+       --model_dir=model_dir \
        --alsologtostderr
    ```
    1. If you are running this on a server over an SSH connection, consider running this command in TMUX, so that it can
@@ -55,15 +59,15 @@ Note: These instructions are based on
 9. Once you are ready to stop training, hold control and press c in the shell that is running the training process. In my
    experience, it took a few hours to train this classifier.
    
-## Exporting the classifier
-1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint   
+## Exporting the Classifier
+1. List the files in the `<models repository location>/research/model_dir` directory. Identify the number of the checkpoint
    that you would like to export. I typically pick the checkpoint with the highest number.
 2. Run the following command from the `<models repository location>/research` directory:
    ``` bash
    python object_detection/export_inference_graph.py \
        --input_type image_tensor \
        --pipeline_config_path experiment_data/faster_rcnn_resnet101_cross_safe.config \
-       --trained_checkpoint_prefix model.ckpt-${CHECKPOINT_NUMBER} \
+       --trained_checkpoint_prefix model_dir/model.ckpt-${CHECKPOINT_NUMBER} \
        --output_directory exported_graphs
    ```
 3. The classifier will be written to the `exported_graphs` directory.
@@ -72,17 +76,39 @@ Note: These instructions are based on
    get around this problem by copying the checkpoint files over to the Jetson and running the
    `object_detection/export_inference_graph.py` command on the Jetson board directly. 
    
-## Evaluating the classifier
+## Evaluating the Classifier
 1. Copy the `compute_metrics.py` script from this repository into your `<models repository location>/research` directory.
-2. Edit the copy of this script and update the location of the frozen inference graph, the label map location, the location
+2. Edit the copy of this script and update the location of the frozen inference graph, the location
    of the pickle file with the list of files in the hold out set, and the location of the JPEG files from the filtered 
-   directory from Cross-Safe.
+   directory from Cross-Safe. When working with images from the `filtered_data` directory, you should comment out the line 
+   `image = image.convert('RGB')`. However, this line is needed when working with images from the `new_splitted_data` directory.
 3. Run the script. It will print out information about the classifier's performance and it will create the pickle files:
    `dont_walk_labels.p`, `dont_walk_scores.p`, `walk_labels.p`, and `walk_scores.p`.
 4. Checkout this repository on a computer with a graphical user interface (or SSH into a server with X Forwarding enabled).
-5. Move the four pickle files created by `compute_metrics.py` into the `precision_recall_curves` directory in this   
+5. Move the four pickle files created by `compute_metrics.py` into the `precision_recall_curves` directory in this
    repository on the computer with access to a GUI. 
 5. Navigate to the `precision_recall_curves` directory with a shell. 
 6. Add the dependencies listed in `requirements.txt` to 
    [a virtualenv](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/#using-requirements-files).
 7. Run the `plot_precision_recall.py` script to generate the precision-recall curve.
+
+## Running the Existing Classifier
+Follow the instructions in the [Evaluating the Classifier section](#evaluating-the-classifier) using the location of the 
+frozen inference graph file in the `classifier` directory of this repository. If you run into issues with this file, follow
+the instructions in the [Exporting the Classifier](#exporting-the-classifier) section using the checkpoint files in the 
+`classifier` directory of this repository. The `classifier` directory also contains a pickle file with the list of holdout
+files. You should direct the `compute_metrics.py` script to this file as well to ensure that you are using data that the classifier has not seen before.
+
+## Licensing
+Unless otherwise stated, the source code files are copyright Carnegie Mellon University and licensed
+under the [Apache 2.0 License](./LICENSE).
+Portions from the following third party sources have
+been modified and are included in this repository.
+These portions are noted in the source files and are
+copyright their respective authors with
+the licenses listed.
+
+| Project                                                      | License                    |
+|--------------------------------------------------------------|----------------------------|
+| [scikit-learn](https://github.com/scikit-learn/scikit-learn) | New BSD License            |
+| [TensorFlow Models](https://github.com/tensorflow/models)    | Apache License Version 2.0 |
