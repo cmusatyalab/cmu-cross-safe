@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 import pickle
 import time
-import heapq
 import os
 import logging
 
@@ -142,6 +141,7 @@ class Metrics:
 
         print('num files', len(test_files))
         for filename in test_files:
+          print('starting', filename, 'at', time.time())
           image_path = os.path.join(IMG_DIR, '{}.JPEG'.format(filename))
 
           image = Image.open(image_path)
@@ -173,18 +173,18 @@ class Metrics:
                 detection_class)
               self.total_predictions += 1
 
-  def print_info():
+  def print_info(self):
     print('total predictions:', self.total_predictions)
     print('boxes in wrong place:', self.box_in_wrong_place)
         
     total_precision = 0
     for score, label in zip(self.scores, self.labels):
-      total_precision += average_precision_score(score, label)
+      total_precision += average_precision_score(label, score)
 
     mAP = total_precision / len(self.scores)
     print('mAP:', mAP)
 
-  def store_results():
+  def store_results(self):
       with open('dont_walk_labels.p', 'wb') as pickle_file:
         pickle.dump(self.labels[0], pickle_file)
 
@@ -217,7 +217,7 @@ def main():
   with detection_graph.as_default():
     od_graph_def = tf.GraphDef()
     with tf.gfile.GFile(
-        '/home/ubuntu/cross_safe_april_2019/frcnn/exported_graphs/'
+        '/home/ubuntu/Cross-Safe/models/research/exported_graphs/'
         'frozen_inference_graph.pb', 'rb') as fid:
       serialized_graph = fid.read()
       od_graph_def.ParseFromString(serialized_graph)
@@ -227,8 +227,8 @@ def main():
         test_files = pickle.load(f)
         metrics = Metrics()
         metrics.write_inference_and_ground_truth(detection_graph, test_files)
-        metrics.print_info()
         metrics.store_results()
+        metrics.print_info()
 
 
 if __name__ == '__main__':
