@@ -4,6 +4,7 @@
 
 import numpy as np
 import tensorflow as tf
+import argparse
 import pickle
 import time
 import os
@@ -14,6 +15,7 @@ from PIL import Image
 from lxml import etree
 from types import SimpleNamespace
 from sklearn.metrics import average_precision_score
+from object_detection.utils import visualization_utils as vis_util
 
 # from https://github.com/agschwender/pilbox/issues/34#issuecomment-84093912
 from PIL import JpegImagePlugin
@@ -34,6 +36,10 @@ CLASSES = {
   'off' : 4,
 }
 OTHER = 'other'
+ERROR_IMAGE_OUTPUT_DIR = 'error_images'
+LABEL_NAMES = ['Don\'t Walk', 'Walk', 'Countdown', 'Off']
+GROUND_TRUTH_COLOR = 'green'
+PREDICTION_COLOR = 'red'
 
 if StrictVersion(tf.__version__) < StrictVersion('1.9.0'):
   raise ImportError('Please upgrade your TensorFlow installation to v1.9.* or later!')
@@ -95,10 +101,44 @@ class Metrics:
     self.scores = [[], [], [], []]
     self.box_in_wrong_place = 0
     self.total_predictions = 0
+    self.multiple_matching_boxes = 0
 
+  def store_image_with_bboxes(
+      self, image, filename, ground_truths, detection_scores,
+      detection_boxes, detection_classes):
+    for ground_truth in ground_truths:
+      label_display = LABEL_NAMES[ground_truth.class_number-1]
+      # Adding extra lines to display_str_list so that label_display
+      # will not get covered up by the detected box
+      vis_util.draw_bounding_box_on_image(
+        image,
+        ground_truth.ymin,
+        ground_truth.xmin,
+        ground_truth.ymax,
+        ground_truth.xmax,
+        color=GROUND_TRUTH_COLOR,
+        display_str_list=[label_display, label_display, label_display])
+      
+    for detection_score, detection_box, detection_class in (
+        zip(detection_scores, detection_boxes, detection_classes)):
+      label_display = LABEL_NAMES[detection_class-1]
+      if detection_score > MIN_SCORE_THRESH:
+        vis_util.draw_bounding_box_on_image(
+          image,
+          detection_box[0],
+          detection_box[1],
+          detection_box[2],
+          detection_box[3],
+          color=PREDICTION_COLOR,
+          display_str_list=[label_display])
+
+    image.save(os.path.join(
+      ERROR_IMAGE_OUTPUT_DIR, '{}.JPEG'.format(filename)))
+    
   def check_box(
       self, ground_truths, detection_score, detection_box, detection_class):
     found_matching_box = False
+    box_mismatched = False
     for ground_truth in ground_truths:
       # The order for these coordinates comes from:
       # https://github.com/tensorflow/models/blob/
@@ -114,18 +154,23 @@ class Metrics:
       if calc_iou(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD:
         if found_matching_box:
           print('Found multiple matching boxes')
+          self.multiple_matching_boxes += 1
 
         found_matching_box = True
+        current_match = detection_class == ground_truth.class_number
+        if not current_match:
+          box_mismatched = True
 
-        label_value = (1 if (detection_class == ground_truth.class_number)
-                       else 0)
+        label_value = 1 if current_match else 0
         self.labels[detection_class-1].append(label_value)
         self.scores[detection_class-1].append(detection_score)
 
     if not found_matching_box:
       self.box_in_wrong_place += 1
 
-  def compare_inference_with_ground_truth(self, graph, test_files):
+    return ((not box_mismatched) and found_matching_box)
+
+  def classify_images(self, graph, test_files, store_mistake_images):
     with graph.as_default():
       with tf.Session() as sess:
         # Get handles to input and output tensors
@@ -143,7 +188,7 @@ class Metrics:
 
         print('num files', len(test_files))
         for filename in test_files:
-          print('starting', filename, 'at', time.time())
+          logging.info('starting %s at %f', filename, time.time())
           image_path = os.path.join(IMG_DIR, '{}.JPEG'.format(filename))
 
           image = Image.open(image_path)
@@ -167,24 +212,47 @@ class Metrics:
 
           ground_truths = load_ground_truths(filename, width, height)
 
+          found_mistake = False
           for detection_score, detection_box, detection_class in (
               zip(detection_scores, detection_boxes, detection_classes)):
             if detection_score > MIN_SCORE_THRESH:
-              self.check_box(
+
+              # We are making mistake its own variable so self.check_box still runs
+              # even when found_mistake is already true
+              prediction_correct = self.check_box(
                 ground_truths, detection_score, detection_box,
                 detection_class)
+              
+              found_mistake = found_mistake or (not prediction_correct)
               self.total_predictions += 1
+
+          if found_mistake and store_mistake_images:
+            # We have already run image through the classifier, so we can draw
+            # bounding boxes on it without affecting results
+            self.store_image_with_bboxes(
+              image, filename, ground_truths, detection_scores, detection_boxes, detection_classes)
 
   def print_info(self):
     print('total predictions:', self.total_predictions)
     print('boxes in wrong place:', self.box_in_wrong_place)
+    print('multiple matching boxes:', self.multiple_matching_boxes)
 
     total_precision = 0
+    num_nonempty_classes = 0
     for score, label in zip(self.scores, self.labels):
-      total_precision += average_precision_score(label, score)
+      
+      assert len(score) == len(label), (
+        'Mismatch of scores and labels')
+      
+      if len(label) == 0:
+        print('Empty label array. Will be excluded from mAP')
+      else:
+        num_nonempty_classes += 1
+        total_precision += average_precision_score(label, score)
 
-    mAP = total_precision / len(self.scores)
+    mAP = total_precision / num_nonempty_classes
     print('mAP:', mAP)
+    print('Accross', num_nonempty_classes, 'classes')
 
   def store_results(self):
       with open('dont_walk_labels.p', 'wb') as pickle_file:
@@ -213,13 +281,21 @@ class Metrics:
 
 
 def main():
-  logging.basicConfig(level=logging.INFO)
+  parser = argparse.ArgumentParser(
+      description='Run images through cross safe object detector.')
+  parser.add_argument('--verbose', action='store_true')
+  parser.add_argument('--store-results', action='store_true')
+  parser.add_argument('--mistake-images', action='store_true')
+
+  args = parser.parse_args()
+  if args.verbose:
+    logging.basicConfig(level=logging.INFO)
 
   detection_graph = tf.Graph()
   with detection_graph.as_default():
     od_graph_def = tf.GraphDef()
     with tf.gfile.GFile(
-        '/home/ubuntu/Cross-Safe/models/research/exported_graphs/'
+        '/home/ubuntu/cross_safe_april_2019/ssd/exported_graphs/'
         'frozen_inference_graph.pb', 'rb') as fid:
       serialized_graph = fid.read()
       od_graph_def.ParseFromString(serialized_graph)
@@ -228,10 +304,11 @@ def main():
       with open('/home/ubuntu/cross_safe_april_2019/tfrecord_output/test_files.p', 'rb') as f:
         test_files = pickle.load(f)
         metrics = Metrics()
-        metrics.compare_inference_with_ground_truth(detection_graph, test_files)
-        metrics.store_results()
+        metrics.classify_images(detection_graph, test_files, args.mistake_images)
         metrics.print_info()
 
+        if args.store_results:
+          metrics.store_results()
 
 if __name__ == '__main__':
   main()
