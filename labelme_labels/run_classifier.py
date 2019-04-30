@@ -1,7 +1,6 @@
 # Based on:
 # https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
 
-
 import numpy as np
 import tensorflow as tf
 import argparse
@@ -73,6 +72,23 @@ def load_image_into_numpy_array(image):
       (im_height, im_width, 3)).astype(np.uint8)
 
 
+def construct_tensor_dict():
+  # Get handles to input and output tensors
+  ops = tf.get_default_graph().get_operations()
+  all_tensor_names = {output.name for op in ops for output in op.outputs}
+  tensor_dict = {}
+  for key in [
+      'num_detections', 'detection_boxes', 'detection_scores',
+      'detection_classes'
+  ]:
+    tensor_name = key + ':0'
+    if tensor_name in all_tensor_names:
+      tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
+        tensor_name)
+
+  return tensor_dict
+
+
 class Metrics:
   def __init__(self):
     self.labels = [[], [], [], []]
@@ -115,7 +131,7 @@ class Metrics:
       heapq.heappush(detections_heap, (-score, detection))
 
     return (detections, detections_heap)
-    
+
   def load_ground_truths(self, filename, width, height):
     self.ground_truths = []
     label_path = os.path.join(LABEL_DIR, '{}.xml'.format(filename))
@@ -141,7 +157,7 @@ class Metrics:
             xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax,
             class_number=class_number, detected=False)
           self.ground_truths.append(ground_truth)
-    
+
   def store_image_with_bboxes(self, image, filename, detections):
     for ground_truth in self.ground_truths:
       label_display = LABEL_NAMES[ground_truth.class_number-1]
@@ -155,7 +171,7 @@ class Metrics:
         ground_truth.xmax,
         color=GROUND_TRUTH_COLOR,
         display_str_list=[label_display, label_display, label_display])
-      
+
     for detection in detections:
       label_display = LABEL_NAMES[detection.class_number-1]
       if detection.score > MIN_SCORE_THRESH:
@@ -170,7 +186,7 @@ class Metrics:
 
     image.save(os.path.join(
       ERROR_IMAGE_OUTPUT_DIR, '{}.JPEG'.format(filename)))
-    
+
   def check_box(self, detection):
     """
     Check to see if detection was correct
@@ -178,13 +194,13 @@ class Metrics:
     Updates self.ground_truths, self.labels, and self.scores
     Returns true if check was successful, false otherwise
     """
-    
+
     max_iou_for_matching = 0
     matching_ground_truth_with_max_iou = None
     for ground_truth in self.ground_truths:
       if (ground_truth.detected == False and
           ground_truth.class_number == detection.class_number):
-        
+
         # The order for these coordinates comes from:
         # https://github.com/tensorflow/models/blob/
         # 62ce5d2a4c39f8e3add4fae70cb0d19d195265c6/research/
@@ -214,18 +230,7 @@ class Metrics:
   def classify_images(self, graph, test_files, store_mistake_images):
     with graph.as_default():
       with tf.Session() as sess:
-        # Get handles to input and output tensors
-        ops = tf.get_default_graph().get_operations()
-        all_tensor_names = {output.name for op in ops for output in op.outputs}
-        tensor_dict = {}
-        for key in [
-            'num_detections', 'detection_boxes', 'detection_scores',
-            'detection_classes'
-        ]:
-          tensor_name = key + ':0'
-          if tensor_name in all_tensor_names:
-            tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
-              tensor_name)
+        tensor_dict = construct_tensor_dict()
 
         print('num files', len(test_files))
         for filename in test_files:
@@ -259,13 +264,13 @@ class Metrics:
               self.labels[ground_truth.class_number-1].append(1)
               self.scores[ground_truth.class_number-1].append(0)
               found_mistake = True
-              
+
           if found_mistake:
             self.images_with_mistakes += 1
-              if store_mistake_images:
-                # We have already run image through the classifier, so we can draw
-                # bounding boxes on it without affecting results
-                self.store_image_with_bboxes(image, filename, detections)
+            if store_mistake_images:
+              # We have already run image through the classifier, so we can draw
+              # bounding boxes on it without affecting results
+              self.store_image_with_bboxes(image, filename, detections)
 
   def print_info(self):
     print('predictions above threshold:', self.predictions_above_threshold)
@@ -274,10 +279,10 @@ class Metrics:
     total_precision = 0
     num_nonempty_classes = 0
     for score, label in zip(self.scores, self.labels):
-      
+
       assert len(score) == len(label), (
         'Mismatch of scores and labels')
-      
+
       if len(label) == 0:
         print('Empty label array. Will be excluded from mAP')
       else:
