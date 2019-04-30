@@ -9,6 +9,7 @@ import pickle
 import time
 import os
 import logging
+import heapq
 
 from distutils.version import StrictVersion
 from PIL import Image
@@ -21,12 +22,19 @@ from object_detection.utils import visualization_utils as vis_util
 from PIL import JpegImagePlugin
 JpegImagePlugin._getmp = lambda x: None
 
+FROZEN_INFERENCE_GRAPH = (
+  '/home/ubuntu/cross_safe_april_2019/frcnn/exported_graphs/'
+  'frozen_inference_graph.pb')
+TEST_FILES = '/home/ubuntu/cross_safe_april_2019/tfrecord_output/test_files.p'
+TIMES_FILE = 'times.txt'
+IMG_DIR = '/home/ubuntu/cross_safe_april_2019/images'
+LABEL_DIR = '/home/ubuntu/cross_safe_april_2019/labels'
+ERROR_IMAGE_OUTPUT_DIR = 'error_images'
+
 # From https://github.com/tensorflow/models/blob/master/research/object_detection/utils/visualization_utils.py#L632
 MIN_SCORE_THRESH = 0.5
 JACCARD_THRESHOLD = 0.5
 
-IMG_DIR = '/home/ubuntu/cross_safe_april_2019/images'
-LABEL_DIR = '/home/ubuntu/cross_safe_april_2019/labels'
 CLASSES = {
   'Don\'t walk' : 1,
   'dont walk' : 1,
@@ -36,7 +44,6 @@ CLASSES = {
   'off' : 4,
 }
 OTHER = 'other'
-ERROR_IMAGE_OUTPUT_DIR = 'error_images'
 LABEL_NAMES = ['Don\'t Walk', 'Walk', 'Countdown', 'Off']
 GROUND_TRUTH_COLOR = 'green'
 PREDICTION_COLOR = 'red'
@@ -66,47 +73,76 @@ def load_image_into_numpy_array(image):
       (im_height, im_width, 3)).astype(np.uint8)
 
 
-def load_ground_truths(filename, width, height):
-  ground_truths = []
-  label_path = os.path.join(LABEL_DIR, '{}.xml'.format(filename))
-  with open(label_path) as label_file:
-    xml = etree.fromstring(label_file.read())
-
-    for child in xml.findall('object'):
-      label_from_file = child.find('name').text
-      class_number = CLASSES.get(label_from_file)
-      if class_number is None:
-        if label_from_file == OTHER:
-          logging.info('Skipping {} label'.format(OTHER))
-        else:
-          raise Exception('Bad label {}'.format(label_from_file))
-      else:
-        bndbox = child.find('bndbox')
-        xmin = (float(bndbox.find('xmin').text) / width)
-        ymin = (float(bndbox.find('ymin').text) / height)
-        xmax = (float(bndbox.find('xmax').text) / width)
-        ymax = (float(bndbox.find('ymax').text) / height)
-
-        ground_truth = SimpleNamespace(
-          xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax,
-          class_number=class_number, detected=False)
-        ground_truths.append(ground_truth)
-
-  return ground_truths
-
-
 class Metrics:
   def __init__(self):
     self.labels = [[], [], [], []]
     self.scores = [[], [], [], []]
-    self.box_in_wrong_place = 0
-    self.total_predictions = 0
-    self.multiple_matching_boxes = 0
+    self.predictions_above_threshold = 0
 
-  def store_image_with_bboxes(
-      self, image, filename, ground_truths, detection_scores,
-      detection_boxes, detection_classes):
-    for ground_truth in ground_truths:
+    # Ground truth boxess for the current image
+    # Gets reset every time self.load_ground_truths is called
+    self.ground_truths = []
+
+    self.times = []
+
+  def run_detection(self, sess, tensor_dict, image):
+
+    # the array based representation of the image will be used later in order to prepare the
+    # result image with boxes and labels on it.
+    image_np = load_image_into_numpy_array(image)
+
+    image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
+    start = time.time()
+    output_dict = sess.run(
+      tensor_dict, feed_dict={image_tensor: np.expand_dims(image_np, 0)})
+    end = time.time()
+
+    time_delta = end - start
+    self.times.append(time_delta)
+
+    detection_classes = output_dict['detection_classes'][0].astype(np.uint8)
+    detection_boxes = output_dict['detection_boxes'][0]
+    detection_scores = output_dict['detection_scores'][0]
+
+    detections = []
+    detections_heap = []
+    for detection_class, box, score in zip(
+        detection_classes, detection_boxes, detection_scores):
+      detection = SimpleNamespace(
+        class_number=detection_class, box=box, score=score)
+      detections.append(detection)
+      heapq.heappush(detections_heap, (-score, detection))
+
+    return (detections, detections_heap)
+    
+  def load_ground_truths(self, filename, width, height):
+    self.ground_truths = []
+    label_path = os.path.join(LABEL_DIR, '{}.xml'.format(filename))
+    with open(label_path) as label_file:
+      xml = etree.fromstring(label_file.read())
+
+      for child in xml.findall('object'):
+        label_from_file = child.find('name').text
+        class_number = CLASSES.get(label_from_file)
+        if class_number is None:
+          if label_from_file == OTHER:
+            logging.info('Skipping {} label'.format(OTHER))
+          else:
+            raise Exception('Bad label {}'.format(label_from_file))
+        else:
+          bndbox = child.find('bndbox')
+          xmin = (float(bndbox.find('xmin').text) / width)
+          ymin = (float(bndbox.find('ymin').text) / height)
+          xmax = (float(bndbox.find('xmax').text) / width)
+          ymax = (float(bndbox.find('ymax').text) / height)
+
+          ground_truth = SimpleNamespace(
+            xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax,
+            class_number=class_number, detected=False)
+          self.ground_truths.append(ground_truth)
+    
+  def store_image_with_bboxes(self, image, filename, detections):
+    for ground_truth in self.ground_truths:
       label_display = LABEL_NAMES[ground_truth.class_number-1]
       # Adding extra lines to display_str_list so that label_display
       # will not get covered up by the detected box
@@ -119,56 +155,60 @@ class Metrics:
         color=GROUND_TRUTH_COLOR,
         display_str_list=[label_display, label_display, label_display])
       
-    for detection_score, detection_box, detection_class in (
-        zip(detection_scores, detection_boxes, detection_classes)):
-      label_display = LABEL_NAMES[detection_class-1]
-      if detection_score > MIN_SCORE_THRESH:
+    for detection in detections:
+      label_display = LABEL_NAMES[detection.class_number-1]
+      if detection.score > MIN_SCORE_THRESH:
         vis_util.draw_bounding_box_on_image(
           image,
-          detection_box[0],
-          detection_box[1],
-          detection_box[2],
-          detection_box[3],
+          detection.box[0],
+          detection.box[1],
+          detection.box[2],
+          detection.box[3],
           color=PREDICTION_COLOR,
           display_str_list=[label_display])
 
     image.save(os.path.join(
       ERROR_IMAGE_OUTPUT_DIR, '{}.JPEG'.format(filename)))
     
-  def check_box(
-      self, ground_truths, detection_score, detection_box, detection_class):
-    found_matching_box = False
-    box_mismatched = False
-    for ground_truth in ground_truths:
-      # The order for these coordinates comes from:
-      # https://github.com/tensorflow/models/blob/
-      # 62ce5d2a4c39f8e3add4fae70cb0d19d195265c6/research/
-      # object_detection/utils/visualization_utils.py#L721
-      ground_truth_bounding_box = [
-        ground_truth.ymin,
-        ground_truth.xmin,
-        ground_truth.ymax,
-        ground_truth.xmax
-      ]
+  def check_box(self, detection):
+    """
+    Check to see if detection was correct
 
-      if calc_iou(detection_box, ground_truth_bounding_box) > JACCARD_THRESHOLD:
-        if found_matching_box:
-          print('Found multiple matching boxes')
-          self.multiple_matching_boxes += 1
+    Updates self.ground_truths, self.labels, and self.scores
+    Returns true if check was successful, false otherwise
+    """
+    
+    max_iou_for_matching = 0
+    matching_ground_truth_with_max_iou = None
+    for ground_truth in self.ground_truths:
+      if (ground_truth.detected == False and
+          ground_truth.class_number == detection.class_number):
+        
+        # The order for these coordinates comes from:
+        # https://github.com/tensorflow/models/blob/
+        # 62ce5d2a4c39f8e3add4fae70cb0d19d195265c6/research/
+        # object_detection/utils/visualization_utils.py#L721
+        ground_truth_bounding_box = [
+          ground_truth.ymin,
+          ground_truth.xmin,
+          ground_truth.ymax,
+          ground_truth.xmax
+        ]
 
-        found_matching_box = True
-        current_match = detection_class == ground_truth.class_number
-        if not current_match:
-          box_mismatched = True
+        current_iou = calc_iou(detection.box, ground_truth_bounding_box)
+        if current_iou > max_iou_for_matching:
+          max_iou_for_matching = current_iou
+          matching_ground_truth_with_max_iou = ground_truth
 
-        label_value = 1 if current_match else 0
-        self.labels[detection_class-1].append(label_value)
-        self.scores[detection_class-1].append(detection_score)
-
-    if not found_matching_box:
-      self.box_in_wrong_place += 1
-
-    return ((not box_mismatched) and found_matching_box)
+    self.scores[detection.class_number-1].append(detection.score)
+    if max_iou_for_matching > JACCARD_THRESHOLD:
+      # Found a box with enough overlap
+      matching_ground_truth_with_max_iou.detected = True
+      self.labels[detection.class_number-1].append(1)
+      return True
+    else:
+      self.labels[detection.class_number-1].append(0)
+      return False
 
   def classify_images(self, graph, test_files, store_mistake_images):
     with graph.as_default():
@@ -196,46 +236,37 @@ class Metrics:
             raise ValueError('Image format not JPEG')
           width, height = image.size
 
-          # the array based representation of the image will be used later in order to prepare the
-          # result image with boxes and labels on it.
-          image_np = load_image_into_numpy_array(image)
-
-          image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
-
-          # Run inference
-          output_dict = sess.run(tensor_dict,
-                                 feed_dict={image_tensor: np.expand_dims(image_np, 0)})
-
-          detection_classes = output_dict['detection_classes'][0].astype(np.uint8)
-          detection_boxes = output_dict['detection_boxes'][0]
-          detection_scores = output_dict['detection_scores'][0]
-
-          ground_truths = load_ground_truths(filename, width, height)
+          self.load_ground_truths(filename, width, height)
+          (detections, detections_heap) = self.run_detection(
+            sess, tensor_dict, image)
 
           found_mistake = False
-          for detection_score, detection_box, detection_class in (
-              zip(detection_scores, detection_boxes, detection_classes)):
-            if detection_score > MIN_SCORE_THRESH:
+          while len(detections_heap) > 0:
+            detection = heapq.heappop(detections_heap)[1]
 
-              # We are making mistake its own variable so self.check_box still runs
-              # even when found_mistake is already true
-              prediction_correct = self.check_box(
-                ground_truths, detection_score, detection_box,
-                detection_class)
-              
+            # We are a separate variable so self.check_box still runs
+            # even when found_mistake is already true
+            prediction_correct = self.check_box(detection)
+
+            # We will only consider this a mistake if the score is high enough
+            if detection.score > MIN_SCORE_THRESH:
               found_mistake = found_mistake or (not prediction_correct)
-              self.total_predictions += 1
+              self.predictions_above_threshold += 1
 
+          for ground_truth in self.ground_truths:
+            if not ground_truth.detected:
+              self.labels[ground_truth.class_number-1].append(1)
+              self.scores[ground_truth.class_number-1].append(0)
+              found_mistake = True
+
+              
           if found_mistake and store_mistake_images:
             # We have already run image through the classifier, so we can draw
             # bounding boxes on it without affecting results
-            self.store_image_with_bboxes(
-              image, filename, ground_truths, detection_scores, detection_boxes, detection_classes)
+            self.store_image_with_bboxes(image, filename, detections)
 
   def print_info(self):
-    print('total predictions:', self.total_predictions)
-    print('boxes in wrong place:', self.box_in_wrong_place)
-    print('multiple matching boxes:', self.multiple_matching_boxes)
+    print('predictions above threshold:', self.predictions_above_threshold)
 
     total_precision = 0
     num_nonempty_classes = 0
@@ -279,6 +310,11 @@ class Metrics:
       with open('off_scores.p', 'wb') as pickle_file:
         pickle.dump(self.scores[3], pickle_file)
 
+  def write_times(self):
+    with open(TIMES_FILE, 'a+') as timesfile:
+      for time_delta in self.times:
+        timesfile.write('{}\n'.format(time_delta))
+
 
 def main():
   parser = argparse.ArgumentParser(
@@ -286,6 +322,7 @@ def main():
   parser.add_argument('--verbose', action='store_true')
   parser.add_argument('--store-results', action='store_true')
   parser.add_argument('--mistake-images', action='store_true')
+  parser.add_argument('--write-times', action='store_true')
 
   args = parser.parse_args()
   if args.verbose:
@@ -294,14 +331,12 @@ def main():
   detection_graph = tf.Graph()
   with detection_graph.as_default():
     od_graph_def = tf.GraphDef()
-    with tf.gfile.GFile(
-        '/home/ubuntu/cross_safe_april_2019/ssd/exported_graphs/'
-        'frozen_inference_graph.pb', 'rb') as fid:
+    with tf.gfile.GFile(FROZEN_INFERENCE_GRAPH, 'rb') as fid:
       serialized_graph = fid.read()
       od_graph_def.ParseFromString(serialized_graph)
       tf.import_graph_def(od_graph_def, name='')
 
-      with open('/home/ubuntu/cross_safe_april_2019/tfrecord_output/test_files.p', 'rb') as f:
+      with open(TEST_FILES, 'rb') as f:
         test_files = pickle.load(f)
         metrics = Metrics()
         metrics.classify_images(detection_graph, test_files, args.mistake_images)
@@ -309,6 +344,9 @@ def main():
 
         if args.store_results:
           metrics.store_results()
+        if args.write_times:
+          metrics.write_times()
+
 
 if __name__ == '__main__':
   main()
