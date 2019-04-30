@@ -78,6 +78,7 @@ class Metrics:
     self.labels = [[], [], [], []]
     self.scores = [[], [], [], []]
     self.predictions_above_threshold = 0
+    self.images_with_mistakes = 0
 
     # Ground truth boxess for the current image
     # Gets reset every time self.load_ground_truths is called
@@ -258,15 +259,17 @@ class Metrics:
               self.labels[ground_truth.class_number-1].append(1)
               self.scores[ground_truth.class_number-1].append(0)
               found_mistake = True
-
               
-          if found_mistake and store_mistake_images:
-            # We have already run image through the classifier, so we can draw
-            # bounding boxes on it without affecting results
-            self.store_image_with_bboxes(image, filename, detections)
+          if found_mistake:
+            self.images_with_mistakes += 1
+              if store_mistake_images:
+                # We have already run image through the classifier, so we can draw
+                # bounding boxes on it without affecting results
+                self.store_image_with_bboxes(image, filename, detections)
 
   def print_info(self):
     print('predictions above threshold:', self.predictions_above_threshold)
+    print('images with mistakes:', self.images_with_mistakes)
 
     total_precision = 0
     num_nonempty_classes = 0
