@@ -123,12 +123,15 @@ class Metrics:
 
     detections = []
     detections_heap = []
-    for detection_class, box, score in zip(
-        detection_classes, detection_boxes, detection_scores):
+
+    # Heap Tie breaking solution suggested here:
+    # https://stackoverflow.com/a/39504878/859277
+    for tiebreak, (detection_class, box, score) in enumerate(
+        zip(detection_classes, detection_boxes, detection_scores)):
       detection = SimpleNamespace(
         class_number=detection_class, box=box, score=score)
       detections.append(detection)
-      heapq.heappush(detections_heap, (-score, detection))
+      heapq.heappush(detections_heap, (-score, tiebreak, detection))
 
     return (detections, detections_heap)
 
@@ -248,7 +251,7 @@ class Metrics:
 
           found_mistake = False
           while len(detections_heap) > 0:
-            detection = heapq.heappop(detections_heap)[1]
+            detection = heapq.heappop(detections_heap)[2]
 
             # We are a separate variable so self.check_box still runs
             # even when found_mistake is already true
@@ -278,13 +281,15 @@ class Metrics:
 
     total_precision = 0
     num_nonempty_classes = 0
-    for score, label in zip(self.scores, self.labels):
+    for class_number, (label, score) in enumerate(
+        zip(self.labels, self.scores)):
 
-      assert len(score) == len(label), (
+      assert len(label) == len(score), (
         'Mismatch of scores and labels')
 
       if len(label) == 0:
-        print('Empty label array. Will be excluded from mAP')
+        print('Empty array for', LABEL_NAMES[class_number])
+        print('Will be excluded from mAP')
       else:
         num_nonempty_classes += 1
         total_precision += average_precision_score(label, score)
