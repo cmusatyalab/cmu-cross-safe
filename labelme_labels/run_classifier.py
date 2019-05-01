@@ -231,6 +231,12 @@ class Metrics:
       return False
 
   def classify_images(self, graph, test_files, store_mistake_images):
+    """
+    We want to match each detected box with at most one ground truth box.
+    In order to prevent low confidence predictiosn from significatly
+    affecting our results, we attempt to match the highest score predictions
+    first.
+    """
     with graph.as_default():
       with tf.Session() as sess:
         tensor_dict = construct_tensor_dict()
