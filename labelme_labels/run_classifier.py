@@ -237,6 +237,7 @@ class Metrics:
     affecting our results, we attempt to match the highest score predictions
     first.
     """
+
     with graph.as_default():
       with tf.Session() as sess:
         tensor_dict = construct_tensor_dict()
