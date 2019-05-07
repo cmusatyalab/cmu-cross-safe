@@ -27,7 +27,7 @@ Note: These instructions are based on
    ``` bash
    python object_detection/dataset_tools/create_cross_safe_tf_record.py \
        --label_map_path=experiment_data/cross_safe_label_map.pbtxt \
-       --data_dir=<The location of the filtered directory from Cross-Safe>
+       --data_dir=<The location of the filtered directory from Cross-Safe> \
        --output_dir=experiment_data
    ```
 5. Run the following commands to download Google's COCO-pretrained Faster R-CNN with Resnet-101 model and copy it into your
